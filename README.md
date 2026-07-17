@@ -4,13 +4,25 @@
 
 ## 启动
 
-双击 `start.command`，或在当前目录运行：
+推荐直接打开网页链接：
+
+```text
+https://cccadyforwork-cloud.github.io/Discount-/
+```
+
+每次把代码推送到 GitHub 的 `main` 分支后，GitHub Pages 会自动更新这个网页。
+
+本地备用启动方式：
+
+Mac：双击 `start.command`，或在当前目录运行：
 
 ```bash
 ./start.sh
 ```
 
-然后打开：
+Windows：双击 `start.bat`。
+
+如果浏览器没有自动打开，再手动打开：
 
 ```text
 http://localhost:4173/index.html
