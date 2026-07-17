@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>折扣动作台账</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Amazon Discount Tracker</p>
+          <h1>折扣动作台账</h1>
+        </div>
+        <div class="today-card">
+          <span>今天</span>
+          <strong id="todayText"></strong>
+        </div>
+      </header>
+
+      <section class="summary-grid" aria-label="折扣概览">
+        <article class="metric">
+          <span>进行中</span>
+          <strong id="activeCount">0</strong>
+        </article>
+        <article class="metric warn">
+          <span>7 天内到期</span>
+          <strong id="expiringCount">0</strong>
+        </article>
+        <article class="metric danger">
+          <span>已过期未处理</span>
+          <strong id="expiredCount">0</strong>
+        </article>
+        <article class="metric">
+          <span>折扣金额合计</span>
+          <strong id="valueTotal">$0.00</strong>
+        </article>
+      </section>
+
+      <section class="alert-strip" id="alertStrip" hidden></section>
+
+      <section class="workspace">
+        <aside class="panel form-panel">
+          <div class="panel-heading">
+            <h2>新增折扣动作</h2>
+            <p>记录每一次调价，而不是只覆盖当前价。</p>
+          </div>
+
+          <form id="discountForm" class="form-grid">
+            <label class="full">
+              <span>内部标题</span>
+              <input name="activityTitle" placeholder="滞销品7.11数据" />
+            </label>
+            <label>
+              <span>负责人</span>
+              <select name="owner">
+                <option value="图图">图图</option>
+                <option value="凯旋">凯旋</option>
+                <option value="CC">CC</option>
+                <option value="团队">团队</option>
+              </select>
+            </label>
+            <label>
+              <span>SKU</span>
+              <input name="sku" required maxlength="40" placeholder="SP-TU-6JT-01" />
+            </label>
+            <label>
+              <span>商品名</span>
+              <input name="productName" placeholder="可选" />
+            </label>
+            <label>
+              <span>站点</span>
+              <select name="marketplace">
+                <option value="US">US</option>
+                <option value="CA">CA</option>
+                <option value="MX">MX</option>
+                <option value="UK">UK</option>
+                <option value="DE">DE</option>
+                <option value="JP">JP</option>
+              </select>
+            </label>
+            <label>
+              <span>调价前价格</span>
+              <input name="regularPrice" type="number" step="0.01" min="0" placeholder="9.39" />
+            </label>
+            <label>
+              <span>折扣价</span>
+              <input name="discountPrice" type="number" step="0.01" min="0.01" required placeholder="8.59" />
+            </label>
+            <label>
+              <span>参与数量</span>
+              <input name="committedUnits" type="number" step="1" min="1" placeholder="5" />
+            </label>
+            <label>
+              <span>开始日期</span>
+              <input name="startDate" type="date" required />
+            </label>
+            <label>
+              <span>结束日期</span>
+              <input name="endDate" type="date" required />
+            </label>
+            <label>
+              <span>提醒提前天数</span>
+              <input name="reminderDays" type="number" step="1" min="0" value="7" />
+            </label>
+            <label>
+              <span>调价原因</span>
+              <select name="reason">
+                <option value="价格折扣活动">价格折扣活动</option>
+                <option value="清库存">清库存</option>
+                <option value="测款">测款</option>
+                <option value="跟价">跟价</option>
+                <option value="冲销量">冲销量</option>
+                <option value="其他">其他</option>
+              </select>
+            </label>
+            <label class="full">
+              <span>到期动作</span>
+              <input name="actionNeeded" placeholder="恢复原价 / 续期 / 观察销量" />
+            </label>
+            <label class="full">
+              <span>备注</span>
+              <textarea name="notes" rows="3" placeholder="记录这次折扣的背景、毛利判断或复盘线索"></textarea>
+            </label>
+            <button class="primary full" type="submit">保存折扣动作</button>
+          </form>
+        </aside>
+
+        <section class="panel table-panel">
+          <div class="panel-heading import-heading">
+            <div>
+              <h2>折扣记录</h2>
+              <p>导入亚马逊价格折扣模板后，可以统一补充周期。</p>
+            </div>
+            <div class="actions">
+              <label class="file-button">
+                导入 Excel
+                <input id="excelInput" type="file" accept=".xlsx,.xls" />
+              </label>
+              <button id="exportButton" class="ghost" type="button">备份数据</button>
+              <button id="clearButton" class="ghost danger-text" type="button">清空</button>
+            </div>
+          </div>
+
+          <div class="import-tools" id="importTools" hidden>
+            <label>
+              <span>内部标题</span>
+              <input id="importTitle" placeholder="例如：滞销品7.11数据" />
+            </label>
+            <label>
+              <span>负责人</span>
+              <select id="importOwner">
+                <option value="图图">图图</option>
+                <option value="凯旋">凯旋</option>
+                <option value="CC">CC</option>
+                <option value="团队">团队</option>
+              </select>
+            </label>
+            <label>
+              <span>导入开始日期</span>
+              <input id="importStart" type="date" />
+            </label>
+            <label>
+              <span>导入结束日期</span>
+              <input id="importEnd" type="date" />
+            </label>
+            <label>
+              <span>默认原因</span>
+              <select id="importReason">
+                <option value="价格折扣活动">价格折扣活动</option>
+                <option value="清库存">清库存</option>
+                <option value="测款">测款</option>
+                <option value="跟价">跟价</option>
+                <option value="冲销量">冲销量</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="filters">
+            <input id="searchInput" placeholder="搜索内部标题 / 负责人 / SKU / 商品名 / 备注" />
+            <select id="ownerFilter">
+              <option value="all">全部负责人</option>
+              <option value="图图">图图</option>
+              <option value="凯旋">凯旋</option>
+              <option value="CC">CC</option>
+              <option value="团队">团队</option>
+            </select>
+            <select id="statusFilter">
+              <option value="all">全部状态</option>
+              <option value="active">进行中</option>
+              <option value="expiring">即将到期</option>
+              <option value="expired">已过期</option>
+              <option value="planned">未开始</option>
+              <option value="closed">已关闭</option>
+              <option value="error">亚马逊错误</option>
+            </select>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>内部标题</th>
+                  <th>状态</th>
+                  <th>负责人</th>
+                  <th>SKU</th>
+                  <th>价格</th>
+                  <th>周期</th>
+                  <th>数量</th>
+                  <th>原因</th>
+                  <th>错误</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="recordRows"></tbody>
+            </table>
+            <div class="empty-state" id="emptyState">
+              <strong>还没有折扣记录</strong>
+              <span>手动新增一条，或导入亚马逊价格折扣 Excel。</span>
+            </div>
+          </div>
+
+          <div class="pagination">
+            <span id="pageInfo">0 条记录</span>
+            <div class="pagination-controls">
+              <label>
+                <span>每页</span>
+                <select id="pageSize">
+                  <option value="20">20 条</option>
+                  <option value="50">50 条</option>
+                </select>
+              </label>
+              <button id="prevPage" class="ghost" type="button">上一页</button>
+              <strong id="pageIndicator">1 / 1</strong>
+              <button id="nextPage" class="ghost" type="button">下一页</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="detailDialog">
+      <form method="dialog" class="dialog-card">
+        <button class="icon-close" value="close" aria-label="关闭">×</button>
+        <h2 id="detailTitle">折扣详情</h2>
+        <dl id="detailList"></dl>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
