@@ -213,6 +213,17 @@ button,
   font-weight: 800;
 }
 
+.link-button {
+  display: inline-grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: 6px;
+  padding: 10px 13px;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .primary,
 .file-button {
   background: var(--brand);
@@ -391,6 +402,45 @@ th {
   font-size: 12px;
 }
 
+body[data-mode="viewer"] .workspace {
+  grid-template-columns: 1fr;
+}
+
+body[data-mode="viewer"] .table-panel {
+  grid-column: 1 / -1;
+}
+
+.admin-shell {
+  width: min(960px, 100%);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+}
+
+.admin-status {
+  min-height: 52px;
+  padding: 0 18px 18px;
+  color: var(--muted);
+  font-weight: 750;
+  white-space: pre-wrap;
+}
+
+.admin-status[data-type="working"] {
+  color: var(--brand);
+}
+
+.admin-status[data-type="success"] {
+  color: #087443;
+}
+
+.admin-status[data-type="error"] {
+  color: var(--danger);
+}
+
 .empty-state {
   display: grid;
   place-items: center;
@@ -470,6 +520,7 @@ dd {
   .summary-grid,
   .workspace,
   .form-grid,
+  .admin-grid,
   .filters,
   .import-heading,
   .import-tools {

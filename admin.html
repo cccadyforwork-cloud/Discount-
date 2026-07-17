@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>折扣数据管理上传</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <main class="app-shell admin-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Admin Upload</p>
+          <h1>折扣数据管理上传</h1>
+        </div>
+        <a class="ghost link-button" href="./index.html">查看公共页</a>
+      </header>
+
+      <section class="panel admin-panel">
+        <div class="panel-heading">
+          <h2>发布共享数据</h2>
+          <p>这次上传会覆盖公共页当前展示的数据。</p>
+        </div>
+
+        <form id="adminForm" class="admin-grid">
+          <label class="full">
+            <span>GitHub 写入令牌</span>
+            <input id="githubToken" type="password" autocomplete="off" required placeholder="只在本次发布时使用，不会保存" />
+          </label>
+          <label>
+            <span>内部标题</span>
+            <input id="activityTitle" required placeholder="例如：滞销品7.11数据" />
+          </label>
+          <label>
+            <span>负责人</span>
+            <select id="owner" required>
+              <option value="">请选择负责人</option>
+              <option value="图图">图图</option>
+              <option value="凯旋">凯旋</option>
+              <option value="CC">CC</option>
+              <option value="团队">团队</option>
+            </select>
+          </label>
+          <label>
+            <span>开始日期</span>
+            <input id="startDate" type="date" required />
+          </label>
+          <label>
+            <span>结束日期</span>
+            <input id="endDate" type="date" required />
+          </label>
+          <label>
+            <span>默认原因</span>
+            <select id="reason">
+              <option value="价格折扣活动">价格折扣活动</option>
+              <option value="清库存">清库存</option>
+              <option value="测款">测款</option>
+              <option value="跟价">跟价</option>
+              <option value="冲销量">冲销量</option>
+            </select>
+          </label>
+          <label class="full">
+            <span>亚马逊价格折扣 Excel</span>
+            <input id="excelFile" type="file" accept=".xlsx,.xls" required />
+          </label>
+          <button class="primary full" type="submit">发布到公共网页</button>
+        </form>
+
+        <div class="admin-status" id="adminStatus" role="status"></div>
+      </section>
+    </main>
+
+    <script src="./admin.js"></script>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 const STORAGE_KEY = "discount-action-ledger:v1";
 const CLEAR_UPLOADED_DATA_KEY = "discount-action-ledger:clear-uploaded-data-2026-07-17";
+const SHARED_DATA_URL = "./data/discount-records.json";
+const VIEWER_MODE = document.body.dataset.mode === "viewer";
 
 const form = document.querySelector("#discountForm");
 const rowsEl = document.querySelector("#recordRows");
@@ -29,14 +31,17 @@ const alertStrip = document.querySelector("#alertStrip");
 const today = new Date();
 const todayISO = toISODate(today);
 
-clearUploadedDiscountDataOnce();
+if (!VIEWER_MODE) {
+  clearUploadedDiscountDataOnce();
+}
 
-let records = loadRecords();
+let records = [];
 let currentPage = 1;
 
 document.querySelector("#todayText").textContent = todayISO;
 form.elements.startDate.value = todayISO;
 form.elements.endDate.value = toISODate(addDays(today, 29));
+configureMode();
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -230,7 +235,7 @@ clearButton.addEventListener("click", () => {
   render();
 });
 
-render();
+initializeRecords();
 
 function render() {
   const visible = getFilteredRecords();
@@ -293,14 +298,21 @@ function renderRow(record) {
       <td>${record.committedUnits || "-"}</td>
       <td>${escapeHTML(record.reason || "-")}</td>
       <td>${errorText}</td>
-      <td>
-        <div class="row-actions">
-          <button class="ghost" type="button" data-action="detail" data-id="${record.id}">详情</button>
-          <button class="ghost" type="button" data-action="toggle" data-id="${record.id}">${record.closed ? "重开" : "关闭"}</button>
-          <button class="ghost danger-text" type="button" data-action="delete" data-id="${record.id}">删</button>
-        </div>
-      </td>
+      <td>${renderRowActions(record)}</td>
     </tr>
+  `;
+}
+
+function renderRowActions(record) {
+  const sharedActions = `<button class="ghost" type="button" data-action="detail" data-id="${record.id}">详情</button>`;
+  if (VIEWER_MODE) return `<div class="row-actions">${sharedActions}</div>`;
+
+  return `
+    <div class="row-actions">
+      ${sharedActions}
+      <button class="ghost" type="button" data-action="toggle" data-id="${record.id}">${record.closed ? "重开" : "关闭"}</button>
+      <button class="ghost danger-text" type="button" data-action="delete" data-id="${record.id}">删</button>
+    </div>
   `;
 }
 
@@ -421,7 +433,16 @@ function normalizeRecord(record) {
   };
 }
 
-function loadRecords() {
+async function initializeRecords() {
+  records = await loadRecords();
+  render();
+}
+
+async function loadRecords() {
+  if (VIEWER_MODE) {
+    return loadSharedRecords();
+  }
+
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   } catch {
@@ -429,8 +450,33 @@ function loadRecords() {
   }
 }
 
+async function loadSharedRecords() {
+  try {
+    const response = await fetch(`${SHARED_DATA_URL}?v=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const sharedRecords = Array.isArray(data) ? data : data.records;
+    return Array.isArray(sharedRecords) ? sharedRecords.map(normalizeRecord) : [];
+  } catch (error) {
+    console.error(error);
+    alertStrip.hidden = false;
+    alertStrip.textContent = "公共数据暂时读取失败，请稍后刷新。";
+    return [];
+  }
+}
+
 function saveRecords() {
+  if (VIEWER_MODE) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function configureMode() {
+  if (!VIEWER_MODE) return;
+
+  document.querySelector(".form-panel")?.setAttribute("hidden", "");
+  importTools.hidden = true;
+  document.querySelector(".actions")?.setAttribute("hidden", "");
+  document.querySelector(".import-heading p").textContent = "公共数据只读展示，由负责人统一上传更新。";
 }
 
 function clearUploadedDiscountDataOnce() {
