@@ -132,7 +132,7 @@
           <div class="panel-heading import-heading">
             <div>
               <h2>折扣记录</h2>
-              <p>导入亚马逊价格折扣模板后，可以统一补充周期。</p>
+              <p>先填导入设置，再选择亚马逊价格折扣 Excel。</p>
             </div>
             <div class="actions">
               <label class="file-button">
@@ -144,7 +144,7 @@
             </div>
           </div>
 
-          <div class="import-tools" id="importTools" hidden>
+          <div class="import-tools" id="importTools">
             <label>
               <span>内部标题</span>
               <input id="importTitle" placeholder="例如：滞销品7.11数据" />
@@ -152,6 +152,7 @@
             <label>
               <span>负责人</span>
               <select id="importOwner">
+                <option value="">请选择负责人</option>
                 <option value="图图">图图</option>
                 <option value="凯旋">凯旋</option>
                 <option value="CC">CC</option>

@@ -113,7 +113,21 @@ nextPageButton.addEventListener("click", () => {
 excelInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  importTools.hidden = false;
+  const title = importTitle.value.trim();
+  const owner = importOwner.value;
+
+  if (!title) {
+    alert("请先填写这批活动的内部标题，再导入 Excel。");
+    excelInput.value = "";
+    importTitle.focus();
+    return;
+  }
+  if (!owner) {
+    alert("请先选择这批活动的负责人，再导入 Excel。");
+    excelInput.value = "";
+    importOwner.focus();
+    return;
+  }
 
   try {
     const imported = await parseAmazonWorkbook(file);
@@ -125,8 +139,8 @@ excelInput.addEventListener("change", async (event) => {
     const additions = imported.map((row) =>
       normalizeRecord({
         id: crypto.randomUUID(),
-        activityTitle: importTitle.value,
-        owner: importOwner.value,
+        activityTitle: title,
+        owner,
         sku: row.sku,
         productName: "",
         marketplace: "US",
@@ -150,7 +164,7 @@ excelInput.addEventListener("change", async (event) => {
     records = [...additions, ...records];
     saveRecords();
     render();
-    alert(`已导入 ${additions.length} 条折扣记录。`);
+    alert(`已导入 ${additions.length} 条折扣记录，内部标题：${title}，负责人：${owner}`);
   } catch (error) {
     console.error(error);
     alert("导入失败。请确认文件是亚马逊价格折扣 Excel，且浏览器能联网加载解析组件。");
