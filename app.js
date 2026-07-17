@@ -1,7 +1,5 @@
 const STORAGE_KEY = "discount-action-ledger:v1";
-const TITLE_BACKFILL_KEY = "discount-action-ledger:title-backfill-2026-07-17";
-const OWNER_BACKFILL_KEY = "discount-action-ledger:owner-backfill-2026-07-17";
-const REASON_BACKFILL_KEY = "discount-action-ledger:reason-backfill-2026-07-17";
+const CLEAR_UPLOADED_DATA_KEY = "discount-action-ledger:clear-uploaded-data-2026-07-17";
 
 const form = document.querySelector("#discountForm");
 const rowsEl = document.querySelector("#recordRows");
@@ -31,17 +29,14 @@ const alertStrip = document.querySelector("#alertStrip");
 const today = new Date();
 const todayISO = toISODate(today);
 
+clearUploadedDiscountDataOnce();
+
 let records = loadRecords();
 let currentPage = 1;
-backfillBlankActivityTitles("7.11滞销品");
-backfillBlankOwners("图图");
-backfillReasonForActivity("7.11滞销品", "清库存");
 
 document.querySelector("#todayText").textContent = todayISO;
 form.elements.startDate.value = todayISO;
 form.elements.endDate.value = toISODate(addDays(today, 29));
-importStart.value = todayISO;
-importEnd.value = toISODate(addDays(today, 29));
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -115,6 +110,8 @@ excelInput.addEventListener("change", async (event) => {
   if (!file) return;
   const title = importTitle.value.trim();
   const owner = importOwner.value;
+  const startDate = importStart.value;
+  const endDate = importEnd.value;
 
   if (!title) {
     alert("请先填写这批活动的内部标题，再导入 Excel。");
@@ -126,6 +123,24 @@ excelInput.addEventListener("change", async (event) => {
     alert("请先选择这批活动的负责人，再导入 Excel。");
     excelInput.value = "";
     importOwner.focus();
+    return;
+  }
+  if (!startDate) {
+    alert("请先选择这批价格折扣的开始日期，再导入 Excel。");
+    excelInput.value = "";
+    importStart.focus();
+    return;
+  }
+  if (!endDate) {
+    alert("请先选择这批价格折扣的结束日期，再导入 Excel。");
+    excelInput.value = "";
+    importEnd.focus();
+    return;
+  }
+  if (!validateDates(startDate, endDate)) {
+    alert("导入结束日期不能早于开始日期。");
+    excelInput.value = "";
+    importEnd.focus();
     return;
   }
 
@@ -147,8 +162,8 @@ excelInput.addEventListener("change", async (event) => {
         regularPrice: row.maxPrice || "",
         discountPrice: row.discountPrice,
         committedUnits: row.committedUnits,
-        startDate: importStart.value,
-        endDate: importEnd.value,
+        startDate,
+        endDate,
         reminderDays: 7,
         reason: importReason.value,
         actionNeeded: "到期前确认恢复原价或续期",
@@ -418,67 +433,13 @@ function saveRecords() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
-function backfillBlankActivityTitles(title) {
-  if (localStorage.getItem(TITLE_BACKFILL_KEY)) return;
-  const changed = records.some((record) => !record.activityTitle);
-  if (!changed) {
-    localStorage.setItem(TITLE_BACKFILL_KEY, "done");
-    return;
-  }
-
-  records = records.map((record) =>
-    record.activityTitle
-      ? record
-      : {
-          ...record,
-          activityTitle: title,
-          updatedAt: new Date().toISOString(),
-        },
-  );
-  saveRecords();
-  localStorage.setItem(TITLE_BACKFILL_KEY, "done");
-}
-
-function backfillBlankOwners(owner) {
-  if (localStorage.getItem(OWNER_BACKFILL_KEY)) return;
-  const changed = records.some((record) => !record.owner);
-  if (!changed) {
-    localStorage.setItem(OWNER_BACKFILL_KEY, "done");
-    return;
-  }
-
-  records = records.map((record) =>
-    record.owner
-      ? record
-      : {
-          ...record,
-          owner,
-          updatedAt: new Date().toISOString(),
-        },
-  );
-  saveRecords();
-  localStorage.setItem(OWNER_BACKFILL_KEY, "done");
-}
-
-function backfillReasonForActivity(activityTitle, reason) {
-  if (localStorage.getItem(REASON_BACKFILL_KEY)) return;
-  const changed = records.some((record) => record.activityTitle === activityTitle && record.reason !== reason);
-  if (!changed) {
-    localStorage.setItem(REASON_BACKFILL_KEY, "done");
-    return;
-  }
-
-  records = records.map((record) =>
-    record.activityTitle === activityTitle
-      ? {
-          ...record,
-          reason,
-          updatedAt: new Date().toISOString(),
-        }
-      : record,
-  );
-  saveRecords();
-  localStorage.setItem(REASON_BACKFILL_KEY, "done");
+function clearUploadedDiscountDataOnce() {
+  if (localStorage.getItem(CLEAR_UPLOADED_DATA_KEY)) return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("discount-action-ledger:title-backfill-2026-07-17");
+  localStorage.removeItem("discount-action-ledger:owner-backfill-2026-07-17");
+  localStorage.removeItem("discount-action-ledger:reason-backfill-2026-07-17");
+  localStorage.setItem(CLEAR_UPLOADED_DATA_KEY, "done");
 }
 
 function addDays(date, days) {
