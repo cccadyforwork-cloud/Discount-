@@ -1,6 +1,6 @@
 const STORAGE_KEY = "discount-action-ledger:v1";
 const SHARED_DATA_URL = "./data/discount-records.json";
-const VIEWER_MODE = location.hostname.endsWith("github.io") || document.body.dataset.mode === "viewer";
+const VIEWER_MODE = document.body.dataset.mode === "viewer";
 
 const form = document.querySelector("#discountForm");
 const rowsEl = document.querySelector("#recordRows");
@@ -438,9 +438,8 @@ async function initializeRecords() {
 }
 
 async function loadRecords() {
-  if (VIEWER_MODE) {
-    return loadSharedRecords();
-  }
+  const sharedRecords = await loadSharedRecords();
+  if (sharedRecords) return sharedRecords;
 
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -452,15 +451,15 @@ async function loadRecords() {
 async function loadSharedRecords() {
   try {
     const response = await fetch(`${SHARED_DATA_URL}?v=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     const sharedRecords = Array.isArray(data) ? data : data.records;
-    return Array.isArray(sharedRecords) ? sharedRecords.map(normalizeRecord) : [];
+    return Array.isArray(sharedRecords) ? sharedRecords.map(normalizeRecord) : null;
   } catch (error) {
     console.error(error);
     alertStrip.hidden = false;
-    alertStrip.textContent = "公共数据暂时读取失败，请稍后刷新。";
-    return [];
+    alertStrip.textContent = "没有读到项目里的共享数据。请用 start.command 启动，不要直接双击 index.html。";
+    return null;
   }
 }
 
