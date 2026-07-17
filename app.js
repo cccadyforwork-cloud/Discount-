@@ -1,5 +1,4 @@
 const STORAGE_KEY = "discount-action-ledger:v1";
-const CLEAR_UPLOADED_DATA_KEY = "discount-action-ledger:clear-uploaded-data-2026-07-17";
 const SHARED_DATA_URL = "./data/discount-records.json";
 const VIEWER_MODE = location.hostname.endsWith("github.io") || document.body.dataset.mode === "viewer";
 
@@ -30,10 +29,6 @@ const alertStrip = document.querySelector("#alertStrip");
 
 const today = new Date();
 const todayISO = toISODate(today);
-
-if (!VIEWER_MODE) {
-  clearUploadedDiscountDataOnce();
-}
 
 let records = [];
 let currentPage = 1;
@@ -481,15 +476,6 @@ function configureMode() {
   importTools.hidden = true;
   document.querySelector(".actions")?.setAttribute("hidden", "");
   document.querySelector(".import-heading p").textContent = "公共数据只读展示，由负责人统一上传更新。";
-}
-
-function clearUploadedDiscountDataOnce() {
-  if (localStorage.getItem(CLEAR_UPLOADED_DATA_KEY)) return;
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem("discount-action-ledger:title-backfill-2026-07-17");
-  localStorage.removeItem("discount-action-ledger:owner-backfill-2026-07-17");
-  localStorage.removeItem("discount-action-ledger:reason-backfill-2026-07-17");
-  localStorage.setItem(CLEAR_UPLOADED_DATA_KEY, "done");
 }
 
 function addDays(date, days) {
