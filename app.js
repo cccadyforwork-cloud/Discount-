@@ -1,7 +1,7 @@
 const STORAGE_KEY = "discount-action-ledger:v1";
 const CLEAR_UPLOADED_DATA_KEY = "discount-action-ledger:clear-uploaded-data-2026-07-17";
 const SHARED_DATA_URL = "./data/discount-records.json";
-const VIEWER_MODE = document.body.dataset.mode === "viewer";
+const VIEWER_MODE = location.hostname.endsWith("github.io") || document.body.dataset.mode === "viewer";
 
 const form = document.querySelector("#discountForm");
 const rowsEl = document.querySelector("#recordRows");
@@ -218,11 +218,15 @@ rowsEl.addEventListener("click", (event) => {
 });
 
 exportButton.addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+  const sharedData = {
+    updatedAt: new Date().toISOString(),
+    records,
+  };
+  const blob = new Blob([JSON.stringify(sharedData, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `折扣记录备份-${todayISO}.json`;
+  link.download = "discount-records.json";
   link.click();
   URL.revokeObjectURL(url);
 });
