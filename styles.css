@@ -62,6 +62,26 @@ textarea {
   margin-bottom: 22px;
 }
 
+.title-block {
+  min-width: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.title-filter {
+  width: 180px;
+  margin-bottom: 2px;
+}
+
+.title-filter select {
+  min-height: 40px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--brand);
@@ -112,17 +132,39 @@ label span {
 .today-card strong,
 .metric strong {
   display: block;
-  margin-top: 4px;
-  font-size: 22px;
+  margin-top: 6px;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   margin-bottom: 16px;
 }
 
 .metric {
-  padding: 18px;
+  display: flex;
+  min-height: 92px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 14px 18px;
+}
+
+.metric-select-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metric-select-label select {
+  width: 150px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-color: rgba(161, 92, 0, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .metric.warn {
@@ -143,7 +185,7 @@ label span {
 }
 
 .workspace {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 

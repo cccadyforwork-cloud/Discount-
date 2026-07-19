@@ -10,9 +10,21 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <div>
+        <div class="title-block">
           <p class="eyebrow">Amazon Discount Tracker</p>
-          <h1>折扣动作台账</h1>
+          <div class="title-row">
+            <h1>折扣动作台账</h1>
+            <label class="title-filter">
+              <span>负责人</span>
+              <select id="summaryOwnerFilter">
+                <option value="all">全部负责人</option>
+                <option value="图图">图图</option>
+                <option value="凯旋">凯旋</option>
+                <option value="CC">CC</option>
+                <option value="团队">团队</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div class="today-card">
           <span>今天</span>
@@ -26,7 +38,13 @@
           <strong id="activeCount">0</strong>
         </article>
         <article class="metric warn">
-          <span>7 天内到期</span>
+          <label class="metric-select-label" for="expiringWindow">
+            <span>到期提醒</span>
+            <select id="expiringWindow">
+              <option value="3">3 天内到期</option>
+              <option value="7" selected>7 天内到期</option>
+            </select>
+          </label>
           <strong id="expiringCount">0</strong>
         </article>
         <article class="metric danger">
@@ -42,92 +60,6 @@
       <section class="alert-strip" id="alertStrip" hidden></section>
 
       <section class="workspace">
-        <aside class="panel form-panel">
-          <div class="panel-heading">
-            <h2>新增折扣动作</h2>
-            <p>记录每一次调价，而不是只覆盖当前价。</p>
-          </div>
-
-          <form id="discountForm" class="form-grid">
-            <label class="full">
-              <span>内部标题</span>
-              <input name="activityTitle" placeholder="滞销品7.11数据" />
-            </label>
-            <label>
-              <span>负责人</span>
-              <select name="owner">
-                <option value="图图">图图</option>
-                <option value="凯旋">凯旋</option>
-                <option value="CC">CC</option>
-                <option value="团队">团队</option>
-              </select>
-            </label>
-            <label>
-              <span>SKU</span>
-              <input name="sku" required maxlength="40" placeholder="SP-TU-6JT-01" />
-            </label>
-            <label>
-              <span>商品名</span>
-              <input name="productName" placeholder="可选" />
-            </label>
-            <label>
-              <span>站点</span>
-              <select name="marketplace">
-                <option value="US">US</option>
-                <option value="CA">CA</option>
-                <option value="MX">MX</option>
-                <option value="UK">UK</option>
-                <option value="DE">DE</option>
-                <option value="JP">JP</option>
-              </select>
-            </label>
-            <label>
-              <span>调价前价格</span>
-              <input name="regularPrice" type="number" step="0.01" min="0" placeholder="9.39" />
-            </label>
-            <label>
-              <span>折扣价</span>
-              <input name="discountPrice" type="number" step="0.01" min="0.01" required placeholder="8.59" />
-            </label>
-            <label>
-              <span>参与数量</span>
-              <input name="committedUnits" type="number" step="1" min="1" placeholder="5" />
-            </label>
-            <label>
-              <span>开始日期</span>
-              <input name="startDate" type="date" required />
-            </label>
-            <label>
-              <span>结束日期</span>
-              <input name="endDate" type="date" required />
-            </label>
-            <label>
-              <span>提醒提前天数</span>
-              <input name="reminderDays" type="number" step="1" min="0" value="7" />
-            </label>
-            <label>
-              <span>调价原因</span>
-              <select name="reason">
-                <option value="价格折扣活动">价格折扣活动</option>
-                <option value="清库存">清库存</option>
-                <option value="测款">测款</option>
-                <option value="跟价">跟价</option>
-                <option value="冲销量">冲销量</option>
-                <option value="其他">其他</option>
-              </select>
-            </label>
-            <label class="full">
-              <span>到期动作</span>
-              <input name="actionNeeded" placeholder="恢复原价 / 续期 / 观察销量" />
-            </label>
-            <label class="full">
-              <span>备注</span>
-              <textarea name="notes" rows="3" placeholder="记录这次折扣的背景、毛利判断或复盘线索"></textarea>
-            </label>
-            <button class="primary full" type="submit">保存折扣动作</button>
-          </form>
-        </aside>
-
         <section class="panel table-panel">
           <div class="panel-heading import-heading">
             <div>
@@ -219,7 +151,7 @@
             </table>
             <div class="empty-state" id="emptyState">
               <strong>还没有折扣记录</strong>
-              <span>手动新增一条，或导入亚马逊价格折扣 Excel。</span>
+              <span>导入亚马逊价格折扣 Excel 后会显示在这里。</span>
             </div>
           </div>
 

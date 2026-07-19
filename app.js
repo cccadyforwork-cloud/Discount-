@@ -6,8 +6,10 @@ const form = document.querySelector("#discountForm");
 const rowsEl = document.querySelector("#recordRows");
 const emptyState = document.querySelector("#emptyState");
 const searchInput = document.querySelector("#searchInput");
+const summaryOwnerFilter = document.querySelector("#summaryOwnerFilter");
 const ownerFilter = document.querySelector("#ownerFilter");
 const statusFilter = document.querySelector("#statusFilter");
+const expiringWindow = document.querySelector("#expiringWindow");
 const pageSizeSelect = document.querySelector("#pageSize");
 const pageInfo = document.querySelector("#pageInfo");
 const pageIndicator = document.querySelector("#pageIndicator");
@@ -34,11 +36,13 @@ let records = [];
 let currentPage = 1;
 
 document.querySelector("#todayText").textContent = todayISO;
-form.elements.startDate.value = todayISO;
-form.elements.endDate.value = toISODate(addDays(today, 29));
+if (form) {
+  form.elements.startDate.value = todayISO;
+  form.elements.endDate.value = toISODate(addDays(today, 29));
+}
 configureMode();
 
-form.addEventListener("submit", (event) => {
+form?.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(form);
   const record = normalizeRecord({
@@ -89,6 +93,16 @@ statusFilter.addEventListener("change", () => {
   render();
 });
 ownerFilter.addEventListener("change", () => {
+  summaryOwnerFilter.value = ownerFilter.value;
+  currentPage = 1;
+  render();
+});
+summaryOwnerFilter.addEventListener("change", () => {
+  ownerFilter.value = summaryOwnerFilter.value;
+  currentPage = 1;
+  render();
+});
+expiringWindow.addEventListener("change", () => {
   currentPage = 1;
   render();
 });
@@ -244,7 +258,8 @@ function render() {
   const pageStart = (currentPage - 1) * pageSize;
   const pageEnd = pageStart + pageSize;
   const pageRecords = visible.slice(pageStart, pageEnd);
-  const enriched = records.map((record) => ({ ...record, status: getStatus(record) }));
+  const summaryRecords = getOwnerScopedRecords();
+  const enriched = summaryRecords.map((record) => ({ ...record, status: getStatus(record) }));
   const active = enriched.filter((record) => record.status.key === "active").length;
   const expiring = enriched.filter((record) => record.status.key === "expiring").length;
   const expired = enriched.filter((record) => record.status.key === "expired").length;
@@ -261,7 +276,7 @@ function render() {
     alertStrip.hidden = false;
     alertStrip.textContent = expired
       ? `有 ${expired} 条折扣已经过期未关闭，需要尽快处理。`
-      : `有 ${expiring} 条折扣将在提醒窗口内到期。`;
+      : `有 ${expiring} 条折扣将在 ${getExpiringWindowDays()} 天内到期。`;
   } else {
     alertStrip.hidden = true;
   }
@@ -343,6 +358,17 @@ function getFilteredRecords() {
   });
 }
 
+function getOwnerScopedRecords() {
+  const owner = summaryOwnerFilter.value;
+  if (owner === "all") return records;
+  return records.filter((record) => record.owner === owner);
+}
+
+function getExpiringWindowDays() {
+  const selected = Number(expiringWindow.value);
+  return Number.isFinite(selected) ? selected : 7;
+}
+
 function getStatus(record) {
   if (record.amazonErrors) {
     return { key: "error", label: "有错误", daysText: "先处理亚马逊校验" };
@@ -353,7 +379,7 @@ function getStatus(record) {
 
   const startDiff = daysBetween(todayISO, record.startDate);
   const endDiff = daysBetween(todayISO, record.endDate);
-  const reminderDays = number(record.reminderDays || 7);
+  const reminderDays = getExpiringWindowDays();
 
   if (startDiff > 0) return { key: "planned", label: "未开始", daysText: `${startDiff} 天后开始` };
   if (endDiff < 0) return { key: "expired", label: "已过期", daysText: `过期 ${Math.abs(endDiff)} 天` };
