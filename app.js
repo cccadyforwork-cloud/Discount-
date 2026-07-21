@@ -9,6 +9,8 @@ const searchInput = document.querySelector("#searchInput");
 const summaryOwnerFilter = document.querySelector("#summaryOwnerFilter");
 const ownerFilter = document.querySelector("#ownerFilter");
 const statusFilter = document.querySelector("#statusFilter");
+const reasonFilter = document.querySelector("#reasonFilter");
+const quickFilterButtons = document.querySelectorAll("[data-quick-filter]");
 const expiringWindow = document.querySelector("#expiringWindow");
 const pageSizeSelect = document.querySelector("#pageSize");
 const pageInfo = document.querySelector("#pageInfo");
@@ -34,6 +36,7 @@ const todayISO = toISODate(today);
 
 let records = [];
 let currentPage = 1;
+const expandedBatchKeys = new Set();
 
 document.querySelector("#todayText").textContent = todayISO;
 if (form) {
@@ -91,6 +94,15 @@ searchInput.addEventListener("input", () => {
 statusFilter.addEventListener("change", () => {
   currentPage = 1;
   render();
+});
+reasonFilter.addEventListener("change", () => {
+  currentPage = 1;
+  render();
+});
+quickFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    applyQuickFilter(button.dataset.quickFilter);
+  });
 });
 ownerFilter.addEventListener("change", () => {
   summaryOwnerFilter.value = ownerFilter.value;
@@ -205,6 +217,48 @@ excelInput.addEventListener("change", async (event) => {
 rowsEl.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-action]");
   if (!button) return;
+
+  if (button.dataset.action === "batch-toggle") {
+    const key = button.dataset.key;
+    if (!key) return;
+    if (expandedBatchKeys.has(key)) {
+      expandedBatchKeys.delete(key);
+    } else {
+      expandedBatchKeys.add(key);
+    }
+    render();
+    return;
+  }
+
+  if (button.dataset.action === "batch-close") {
+    const key = button.dataset.key;
+    const batchRecords = getRecordsByBatchKey(key);
+    if (!batchRecords.length) return;
+    const shouldClose = batchRecords.some((item) => !item.closed);
+    batchRecords.forEach((item) => {
+      item.closed = shouldClose;
+      item.updatedAt = new Date().toISOString();
+    });
+    saveRecords();
+    render();
+    return;
+  }
+
+  if (button.dataset.action === "batch-delete") {
+    const key = button.dataset.key;
+    const batchRecords = getRecordsByBatchKey(key);
+    if (!batchRecords.length) return;
+    const sample = batchRecords[0];
+    const title = sample.activityTitle || "未命名批次";
+    if (!confirm(`删除「${title}」这一整批 ${batchRecords.length} 条 SKU？`)) return;
+    const ids = new Set(batchRecords.map((item) => item.id));
+    records = records.filter((item) => !ids.has(item.id));
+    expandedBatchKeys.delete(key);
+    saveRecords();
+    render();
+    return;
+  }
+
   const record = records.find((item) => item.id === button.dataset.id);
   if (!record) return;
 
@@ -252,12 +306,13 @@ initializeRecords();
 
 function render() {
   const visible = getFilteredRecords();
+  const batches = buildBatchGroups(visible);
   const pageSize = Number(pageSizeSelect.value);
-  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(batches.length / pageSize));
   currentPage = Math.min(Math.max(1, currentPage), totalPages);
   const pageStart = (currentPage - 1) * pageSize;
   const pageEnd = pageStart + pageSize;
-  const pageRecords = visible.slice(pageStart, pageEnd);
+  const pageBatches = batches.slice(pageStart, pageEnd);
   const summaryRecords = getOwnerScopedRecords();
   const enriched = summaryRecords.map((record) => ({ ...record, status: getStatus(record) }));
   const active = enriched.filter((record) => record.status.key === "active").length;
@@ -281,39 +336,90 @@ function render() {
     alertStrip.hidden = true;
   }
 
-  rowsEl.innerHTML = pageRecords.map(renderRow).join("");
-  emptyState.hidden = pageRecords.length > 0;
-  pageInfo.textContent = visible.length
-    ? `显示 ${pageStart + 1}-${Math.min(pageEnd, visible.length)} 条，共 ${visible.length} 条`
+  rowsEl.innerHTML = pageBatches.map(renderBatch).join("");
+  emptyState.hidden = pageBatches.length > 0;
+  pageInfo.textContent = batches.length
+    ? `显示 ${pageStart + 1}-${Math.min(pageEnd, batches.length)} 批，共 ${batches.length} 批 / ${visible.length} 条 SKU`
     : "0 条记录";
   pageIndicator.textContent = `${currentPage} / ${totalPages}`;
   prevPageButton.disabled = currentPage <= 1;
   nextPageButton.disabled = currentPage >= totalPages;
+  updateQuickFilterState();
 }
 
-function renderRow(record) {
-  const status = getStatus(record);
-  const errorText = record.amazonErrors ? escapeHTML(record.amazonErrors).replaceAll("\n", "<br />") : "-";
-  const priceText = [
-    record.regularPrice ? `<span class="muted">原 ${money(record.regularPrice)}</span>` : "",
-    `<strong>${money(record.discountPrice)}</strong>`,
-  ]
-    .filter(Boolean)
-    .join("<br />");
+function renderBatch(batch) {
+  const isExpanded = expandedBatchKeys.has(batch.key);
+  const sample = batch.records[0];
+  const fullRecords = getRecordsByBatchKey(batch.key);
+  const totalCount = fullRecords.length || batch.records.length;
+  const matchedText =
+    totalCount === batch.records.length ? `${totalCount} 条 SKU` : `匹配 ${batch.records.length} / 共 ${totalCount} 条 SKU`;
+  const statusSummary = getBatchStatusSummary(batch.records);
+  const actionHint = getBatchActionHint(batch.records, statusSummary);
+  const allClosed = fullRecords.length ? fullRecords.every((record) => record.closed) : false;
+  const reasons = uniqueValues(batch.records.map((record) => record.reason).filter(Boolean));
+  const reasonText = reasons.length <= 1 ? reasons[0] || "-" : `${reasons[0]} 等 ${reasons.length} 类`;
+  const errorCount = batch.records.filter((record) => record.amazonErrors).length;
+  const detailRows = isExpanded ? batch.records.map(renderSkuRow).join("") : "";
 
   return `
-    <tr>
-      <td><strong>${escapeHTML(record.activityTitle || "-")}</strong></td>
-      <td><span class="status ${status.key}">${status.label}</span><div class="muted">${status.daysText}</div></td>
-      <td>${escapeHTML(record.owner || "-")}</td>
+    <tr class="batch-row ${isExpanded ? "is-open" : ""}">
+      <td>
+        <button class="batch-title" type="button" data-action="batch-toggle" data-key="${escapeAttribute(batch.key)}" aria-expanded="${isExpanded}">
+          <span class="chevron">${isExpanded ? "▾" : "▸"}</span>
+          <span>
+            <strong>${escapeHTML(sample.activityTitle || "未命名批次")}</strong>
+            <span class="muted">${matchedText}</span>
+            <span class="action-hint">${escapeHTML(actionHint)}</span>
+          </span>
+        </button>
+      </td>
+      <td>${renderPrimaryStatus(statusSummary, batch.records.length)}</td>
+      <td>${escapeHTML(sample.owner || "-")}</td>
+      <td>${renderDiscountPrice(batch.records)}</td>
+      <td>${renderDateRange(sample)}</td>
+      <td>${renderCommittedUnits(batch.records)}</td>
+      <td>
+        <div>${escapeHTML(reasonText)}</div>
+        <div class="${errorCount ? "danger-note" : "muted"}">${errorCount ? `${errorCount} 条亚马逊错误` : "无错误"}</div>
+      </td>
+      <td>${renderBatchActions(batch, allClosed, isExpanded)}</td>
+    </tr>
+    ${detailRows}
+  `;
+}
+
+function renderSkuRow(record) {
+  const status = getStatus(record);
+  const errorText = record.amazonErrors ? escapeHTML(record.amazonErrors).replaceAll("\n", "<br />") : "-";
+
+  return `
+    <tr class="sku-row">
       <td><div class="sku">${escapeHTML(record.sku)}</div><div class="muted">${escapeHTML(record.productName || record.marketplace || "")}</div></td>
-      <td>${priceText}</td>
-      <td>${escapeHTML(record.startDate)}<br /><span class="muted">至 ${escapeHTML(record.endDate)}</span></td>
+      <td><span class="status ${status.key}">${status.label}</span><div class="muted">${status.daysText}</div></td>
+      <td><span class="muted">同批次</span></td>
+      <td><strong>${money(record.discountPrice)}</strong></td>
+      <td><span class="muted">同批次</span></td>
       <td>${record.committedUnits || "-"}</td>
-      <td>${escapeHTML(record.reason || "-")}</td>
-      <td>${errorText}</td>
+      <td><div class="${record.amazonErrors ? "danger-note" : "muted"}">${errorText}</div></td>
       <td>${renderRowActions(record)}</td>
     </tr>
+  `;
+}
+
+function renderBatchActions(batch, allClosed, isExpanded) {
+  const expandButton = `<button class="ghost" type="button" data-action="batch-toggle" data-key="${escapeAttribute(batch.key)}">${isExpanded ? "收起" : "展开"}</button>`;
+  if (VIEWER_MODE) return `<div class="row-actions">${expandButton}</div>`;
+
+  return `
+    <div class="row-actions">
+      ${expandButton}
+      <button class="ghost" type="button" data-action="batch-close" data-key="${escapeAttribute(batch.key)}">${allClosed ? "重开整批" : "关闭整批"}</button>
+      <details class="more-actions">
+        <summary>更多</summary>
+        <button class="ghost danger-text" type="button" data-action="batch-delete" data-key="${escapeAttribute(batch.key)}">删整批</button>
+      </details>
+    </div>
   `;
 }
 
@@ -330,10 +436,201 @@ function renderRowActions(record) {
   `;
 }
 
+function applyQuickFilter(filter) {
+  if (filter === "reset") {
+    searchInput.value = "";
+    ownerFilter.value = "all";
+    summaryOwnerFilter.value = "all";
+    statusFilter.value = "all";
+    reasonFilter.value = "all";
+  }
+
+  if (filter === "expired") {
+    statusFilter.value = "expired";
+  }
+
+  if (filter === "expiring") {
+    statusFilter.value = "expiring";
+  }
+
+  if (filter === "error") {
+    statusFilter.value = "error";
+  }
+
+  if (filter === "owner") {
+    if (summaryOwnerFilter.value !== "all") {
+      ownerFilter.value = summaryOwnerFilter.value;
+    } else if (ownerFilter.value === "all") {
+      ownerFilter.focus();
+    }
+  }
+
+  currentPage = 1;
+  render();
+}
+
+function updateQuickFilterState() {
+  quickFilterButtons.forEach((button) => {
+    const filter = button.dataset.quickFilter;
+    const isActive =
+      (filter === "expired" && statusFilter.value === "expired") ||
+      (filter === "expiring" && statusFilter.value === "expiring") ||
+      (filter === "error" && statusFilter.value === "error") ||
+      (filter === "owner" && ownerFilter.value !== "all");
+    button.classList.toggle("is-active", isActive);
+  });
+}
+
+function buildBatchGroups(recordList) {
+  const groups = new Map();
+  recordList.forEach((record) => {
+    const key = getBatchKey(record);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        records: [],
+      });
+    }
+    groups.get(key).records.push(record);
+  });
+  return Array.from(groups.values());
+}
+
+function getBatchKey(record) {
+  return [record.activityTitle, record.owner, record.startDate, record.endDate]
+    .map((value) => encodeURIComponent(String(value || "")))
+    .join("|");
+}
+
+function getRecordsByBatchKey(key) {
+  return records.filter((record) => getBatchKey(record) === key);
+}
+
+function renderDiscountPrice(recordList) {
+  const discountPrice = formatMoneyRange(recordList.map((record) => record.discountPrice));
+
+  return `<strong>${discountPrice}</strong>`;
+}
+
+function renderDateRange(record) {
+  return `
+    <strong class="due-date">${escapeHTML(record.endDate || "-")}</strong>
+    <br />
+    <span class="muted">开始 ${escapeHTML(record.startDate || "-")}</span>
+  `;
+}
+
+function renderCommittedUnits(recordList) {
+  const range = formatNumberRange(recordList.map((record) => record.committedUnits));
+  return range === "-" ? "-" : `每条 ${range}`;
+}
+
+function formatMoneyRange(values) {
+  const numbers = values.map(number).filter((value) => value > 0);
+  if (!numbers.length) return "-";
+  const min = Math.min(...numbers);
+  const max = Math.max(...numbers);
+  return min === max ? money(min) : `${money(min)} - ${money(max)}`;
+}
+
+function formatNumberRange(values) {
+  const numbers = values.map(number).filter((value) => value > 0);
+  if (!numbers.length) return "-";
+  const min = Math.min(...numbers);
+  const max = Math.max(...numbers);
+  return min === max ? String(min) : `${min} - ${max}`;
+}
+
+function getBatchStatusSummary(recordList) {
+  const labels = {
+    error: "有错误",
+    expired: "已过期",
+    expiring: "即将到期",
+    active: "进行中",
+    planned: "未开始",
+    closed: "已关闭",
+  };
+  const order = ["error", "expired", "expiring", "active", "planned", "closed"];
+  const counts = recordList.reduce((summary, record) => {
+    const status = getStatus(record);
+    summary[status.key] = (summary[status.key] || 0) + 1;
+    return summary;
+  }, {});
+
+  return order
+    .filter((key) => counts[key])
+    .map((key) => ({
+      key,
+      label: labels[key],
+      count: counts[key],
+    }));
+}
+
+function renderPrimaryStatus(summary, totalCount) {
+  const primary = summary[0] || { key: "closed", label: "无记录", count: 0 };
+  const secondary = summary
+    .slice(1)
+    .map((item) => `${item.label} ${item.count}`)
+    .join(" / ");
+  const detailText = secondary || `共 ${totalCount} 条 SKU`;
+
+  return `
+    <div class="batch-status-main">
+      <span class="status ${primary.key}">${primary.label} ${primary.count}</span>
+      <span class="muted">${detailText}</span>
+    </div>
+  `;
+}
+
+function getBatchActionHint(recordList, summary) {
+  const primary = summary[0];
+  if (!primary) return "暂无需要处理的动作";
+
+  if (primary.key === "error") {
+    return `${primary.count} 条亚马逊错误，先处理错误`;
+  }
+
+  if (primary.key === "expired") {
+    return `${primary.count} 条已过期，确认恢复原价或续期`;
+  }
+
+  if (primary.key === "expiring") {
+    return `${primary.count} 条将在 ${getExpiringWindowDays()} 天内到期，提前确认续期或关闭`;
+  }
+
+  if (primary.key === "planned") {
+    const days = minStatusDays(recordList, "planned");
+    return days ? `${days} 天后开始，留意活动生效` : "未开始，留意活动生效";
+  }
+
+  if (primary.key === "active") {
+    const days = minStatusDays(recordList, "active");
+    return Number.isFinite(days) ? `${days} 天后结束，到期前确认下一步` : "进行中，到期前确认下一步";
+  }
+
+  return "整批已关闭";
+}
+
+function minStatusDays(recordList, statusKey) {
+  const days = recordList
+    .filter((record) => getStatus(record).key === statusKey)
+    .map((record) => {
+      if (statusKey === "planned") return daysBetween(todayISO, record.startDate);
+      return daysBetween(todayISO, record.endDate);
+    })
+    .filter(Number.isFinite);
+  return days.length ? Math.min(...days) : NaN;
+}
+
+function uniqueValues(values) {
+  return Array.from(new Set(values));
+}
+
 function getFilteredRecords() {
   const query = searchInput.value.trim().toLowerCase();
   const owner = ownerFilter.value;
   const filter = statusFilter.value;
+  const reason = reasonFilter.value;
 
   return records.filter((record) => {
     const status = getStatus(record);
@@ -354,7 +651,8 @@ function getFilteredRecords() {
       status.key === filter ||
       (filter === "error" && Boolean(record.amazonErrors));
     const matchesOwner = owner === "all" || record.owner === owner;
-    return matchesQuery && matchesOwner && matchesStatus;
+    const matchesReason = reason === "all" || record.reason === reason;
+    return matchesQuery && matchesOwner && matchesStatus && matchesReason;
   });
 }
 
@@ -420,10 +718,10 @@ function showDetail(record) {
     ["负责人", record.owner || "-"],
     ["商品名", record.productName || "-"],
     ["站点", record.marketplace || "-"],
-    ["调价前价格", record.regularPrice ? money(record.regularPrice) : "-"],
-    ["折扣价", money(record.discountPrice)],
+    ["折扣后价格", money(record.discountPrice)],
     ["参与数量", record.committedUnits || "-"],
-    ["周期", `${record.startDate} 至 ${record.endDate}`],
+    ["到期日期", record.endDate || "-"],
+    ["开始日期", record.startDate || "-"],
     ["提醒", `提前 ${record.reminderDays || 7} 天`],
     ["原因", record.reason || "-"],
     ["到期动作", record.actionNeeded || "-"],
@@ -550,4 +848,8 @@ function escapeHTML(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHTML(value).replaceAll("`", "&#096;");
 }

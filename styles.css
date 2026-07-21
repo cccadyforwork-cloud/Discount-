@@ -49,6 +49,7 @@ textarea {
 .summary-grid,
 .workspace,
 .filters,
+.quick-filters,
 .import-heading,
 .actions,
 .import-tools {
@@ -315,8 +316,33 @@ button,
 }
 
 .filters {
-  grid-template-columns: 1fr 150px 180px;
+  grid-template-columns: minmax(220px, 1fr) 150px 180px 180px;
+  padding-bottom: 10px;
+}
+
+.quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px 16px;
   border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+}
+
+.quick-filter {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #405061;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.quick-filter:hover,
+.quick-filter.is-active {
+  border-color: rgba(15, 118, 110, 0.34);
+  background: #e9f4f3;
+  color: var(--brand-dark);
 }
 
 .table-wrap {
@@ -367,7 +393,7 @@ button:disabled {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1120px;
+  min-width: 1060px;
 }
 
 th,
@@ -388,13 +414,107 @@ th {
   font-size: 12px;
 }
 
+th:first-child {
+  width: 24%;
+}
+
+th:nth-child(2) {
+  width: 14%;
+}
+
+th:nth-child(4) {
+  width: 14%;
+}
+
+th:nth-child(8) {
+  width: 19%;
+}
+
+.batch-row {
+  background: #fff;
+}
+
+.batch-row.is-open {
+  background: #fbfcfe;
+}
+
+.batch-row td {
+  border-bottom-color: #cfd8e3;
+}
+
+.batch-title {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.batch-title span:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.action-hint {
+  color: var(--brand-dark);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.chevron {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 6px;
+  background: #e9f4f3;
+  color: var(--brand);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.batch-status-main {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.sku-row {
+  background: #fcfdff;
+}
+
+.sku-row td:first-child {
+  padding-left: 48px;
+}
+
 .sku {
   font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .muted {
   color: var(--muted);
   font-size: 12px;
+}
+
+.danger-note {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.due-date {
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 .status {
@@ -436,12 +556,40 @@ th {
 
 .row-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .row-actions button {
   padding: 7px 9px;
   font-size: 12px;
+}
+
+.more-actions {
+  position: relative;
+}
+
+.more-actions summary {
+  display: inline-grid;
+  min-height: 32px;
+  place-items: center;
+  border-radius: 6px;
+  background: #edf2f7;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style: none;
+  padding: 7px 9px;
+}
+
+.more-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.more-actions[open] {
+  display: grid;
+  gap: 6px;
 }
 
 body[data-mode="viewer"] .workspace {
@@ -575,5 +723,125 @@ dd {
 
   .actions {
     grid-auto-flow: row;
+  }
+
+  .table-wrap {
+    overflow: visible;
+    padding: 12px;
+    background: #f7f9fc;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  table {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  tr {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .sku-row {
+    margin-top: -2px;
+    border-color: #e3e9f0;
+    background: #fcfdff;
+  }
+
+  th,
+  td {
+    border-bottom: 0;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+
+  td::before {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  td:nth-child(1)::before {
+    content: "批次";
+  }
+
+  .sku-row td:nth-child(1)::before {
+    content: "SKU";
+  }
+
+  td:nth-child(2)::before {
+    content: "状态";
+  }
+
+  td:nth-child(3)::before {
+    content: "负责人";
+  }
+
+  td:nth-child(4)::before {
+    content: "折扣后价格";
+  }
+
+  td:nth-child(5)::before {
+    content: "到期日期";
+  }
+
+  td:nth-child(6)::before {
+    content: "数量";
+  }
+
+  td:nth-child(7)::before {
+    content: "原因 / 错误";
+  }
+
+  td:nth-child(8)::before {
+    content: "操作";
+  }
+
+  .batch-row td:first-child,
+  .sku-row td:first-child {
+    padding-left: 12px;
+  }
+
+  .batch-title {
+    min-width: 0;
+  }
+
+  .row-actions button {
+    min-height: 34px;
+  }
+
+  .pagination,
+  .pagination-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-controls label {
+    justify-content: space-between;
   }
 }

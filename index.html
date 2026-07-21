@@ -129,21 +129,34 @@
               <option value="closed">已关闭</option>
               <option value="error">亚马逊错误</option>
             </select>
+            <select id="reasonFilter">
+              <option value="all">全部原因</option>
+              <option value="价格折扣活动">价格折扣活动</option>
+              <option value="清库存">清库存</option>
+              <option value="测款">测款</option>
+              <option value="跟价">跟价</option>
+              <option value="冲销量">冲销量</option>
+            </select>
+          </div>
+          <div class="quick-filters" aria-label="快速筛选">
+            <button class="quick-filter" type="button" data-quick-filter="expired">已过期</button>
+            <button class="quick-filter" type="button" data-quick-filter="expiring">即将到期</button>
+            <button class="quick-filter" type="button" data-quick-filter="error">有错误</button>
+            <button class="quick-filter" type="button" data-quick-filter="owner">当前负责人</button>
+            <button class="quick-filter ghost" type="button" data-quick-filter="reset">重置</button>
           </div>
 
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>内部标题</th>
+                  <th>批次 / SKU</th>
                   <th>状态</th>
                   <th>负责人</th>
-                  <th>SKU</th>
-                  <th>价格</th>
-                  <th>周期</th>
-                  <th>数量</th>
-                  <th>原因</th>
-                  <th>错误</th>
+                  <th>折扣后价格</th>
+                  <th>到期日期</th>
+                  <th>单条 SKU 数量</th>
+                  <th>原因 / 错误</th>
                   <th>操作</th>
                 </tr>
               </thead>
@@ -161,8 +174,8 @@
               <label>
                 <span>每页</span>
                 <select id="pageSize">
-                  <option value="20">20 条</option>
-                  <option value="50">50 条</option>
+                  <option value="20">20 批</option>
+                  <option value="50">50 批</option>
                 </select>
               </label>
               <button id="prevPage" class="ghost" type="button">上一页</button>
