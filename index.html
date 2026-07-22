@@ -145,6 +145,14 @@
             <button class="quick-filter" type="button" data-quick-filter="owner">当前负责人</button>
             <button class="quick-filter ghost" type="button" data-quick-filter="reset">重置</button>
           </div>
+          <div class="bulk-toolbar" id="bulkToolbar" hidden>
+            <strong id="bulkSummary">未选择记录</strong>
+            <div class="bulk-actions">
+              <button class="ghost danger-text" id="deleteSelectedBatches" type="button">删除所选批次</button>
+              <button class="ghost danger-text" id="deleteSelectedSkus" type="button">删除所选 SKU</button>
+              <button class="ghost" id="clearSelection" type="button">取消选择</button>
+            </div>
+          </div>
 
           <div class="table-wrap">
             <table>

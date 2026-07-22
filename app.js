@@ -17,6 +17,11 @@ const pageInfo = document.querySelector("#pageInfo");
 const pageIndicator = document.querySelector("#pageIndicator");
 const prevPageButton = document.querySelector("#prevPage");
 const nextPageButton = document.querySelector("#nextPage");
+const bulkToolbar = document.querySelector("#bulkToolbar");
+const bulkSummary = document.querySelector("#bulkSummary");
+const deleteSelectedBatchesButton = document.querySelector("#deleteSelectedBatches");
+const deleteSelectedSkusButton = document.querySelector("#deleteSelectedSkus");
+const clearSelectionButton = document.querySelector("#clearSelection");
 const excelInput = document.querySelector("#excelInput");
 const importTools = document.querySelector("#importTools");
 const importTitle = document.querySelector("#importTitle");
@@ -37,6 +42,8 @@ const todayISO = toISODate(today);
 let records = [];
 let currentPage = 1;
 const expandedBatchKeys = new Set();
+const selectedBatchKeys = new Set();
+const selectedSkuIds = new Set();
 
 document.querySelector("#todayText").textContent = todayISO;
 if (form) {
@@ -128,6 +135,12 @@ prevPageButton.addEventListener("click", () => {
 });
 nextPageButton.addEventListener("click", () => {
   currentPage += 1;
+  render();
+});
+deleteSelectedBatchesButton.addEventListener("click", deleteSelectedBatches);
+deleteSelectedSkusButton.addEventListener("click", deleteSelectedSkus);
+clearSelectionButton.addEventListener("click", () => {
+  clearSelections();
   render();
 });
 
@@ -254,6 +267,8 @@ rowsEl.addEventListener("click", (event) => {
     const ids = new Set(batchRecords.map((item) => item.id));
     records = records.filter((item) => !ids.has(item.id));
     expandedBatchKeys.delete(key);
+    selectedBatchKeys.delete(key);
+    ids.forEach((id) => selectedSkuIds.delete(id));
     saveRecords();
     render();
     return;
@@ -275,7 +290,36 @@ rowsEl.addEventListener("click", (event) => {
 
   if (button.dataset.action === "delete" && confirm(`删除 ${record.sku} 这条折扣动作？`)) {
     records = records.filter((item) => item.id !== record.id);
+    selectedSkuIds.delete(record.id);
     saveRecords();
+    render();
+  }
+});
+
+rowsEl.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("input[data-select]");
+  if (!checkbox) return;
+
+  if (checkbox.dataset.select === "batch") {
+    const key = checkbox.dataset.key;
+    if (!key) return;
+    if (checkbox.checked) {
+      selectedBatchKeys.add(key);
+    } else {
+      selectedBatchKeys.delete(key);
+    }
+    render();
+    return;
+  }
+
+  if (checkbox.dataset.select === "sku") {
+    const id = checkbox.dataset.id;
+    if (!id) return;
+    if (checkbox.checked) {
+      selectedSkuIds.add(id);
+    } else {
+      selectedSkuIds.delete(id);
+    }
     render();
   }
 });
@@ -305,6 +349,7 @@ clearButton.addEventListener("click", () => {
 initializeRecords();
 
 function render() {
+  pruneSelections();
   const visible = getFilteredRecords();
   const batches = buildBatchGroups(visible);
   const pageSize = Number(pageSizeSelect.value);
@@ -345,6 +390,7 @@ function render() {
   prevPageButton.disabled = currentPage <= 1;
   nextPageButton.disabled = currentPage >= totalPages;
   updateQuickFilterState();
+  updateBulkToolbar();
 }
 
 function renderBatch(batch) {
@@ -363,16 +409,19 @@ function renderBatch(batch) {
   const detailRows = isExpanded ? batch.records.map(renderSkuRow).join("") : "";
 
   return `
-    <tr class="batch-row ${isExpanded ? "is-open" : ""}">
+    <tr class="batch-row ${isExpanded ? "is-open" : ""} ${selectedBatchKeys.has(batch.key) ? "is-selected" : ""}">
       <td>
-        <button class="batch-title" type="button" data-action="batch-toggle" data-key="${escapeAttribute(batch.key)}" aria-expanded="${isExpanded}">
-          <span class="chevron">${isExpanded ? "▾" : "▸"}</span>
-          <span>
-            <strong>${escapeHTML(sample.activityTitle || "未命名批次")}</strong>
-            <span class="muted">${matchedText}</span>
-            <span class="action-hint">${escapeHTML(actionHint)}</span>
-          </span>
-        </button>
+        <div class="selectable-title">
+          ${renderBatchCheckbox(batch)}
+          <button class="batch-title" type="button" data-action="batch-toggle" data-key="${escapeAttribute(batch.key)}" aria-expanded="${isExpanded}">
+            <span class="chevron">${isExpanded ? "▾" : "▸"}</span>
+            <span>
+              <strong>${escapeHTML(sample.activityTitle || "未命名批次")}</strong>
+              <span class="muted">${matchedText}</span>
+              <span class="action-hint">${escapeHTML(actionHint)}</span>
+            </span>
+          </button>
+        </div>
       </td>
       <td>${renderPrimaryStatus(statusSummary, batch.records.length)}</td>
       <td>${escapeHTML(sample.owner || "-")}</td>
@@ -394,8 +443,13 @@ function renderSkuRow(record) {
   const errorText = record.amazonErrors ? escapeHTML(record.amazonErrors).replaceAll("\n", "<br />") : "-";
 
   return `
-    <tr class="sku-row">
-      <td><div class="sku">${escapeHTML(record.sku)}</div><div class="muted">${escapeHTML(record.productName || record.marketplace || "")}</div></td>
+    <tr class="sku-row ${selectedSkuIds.has(record.id) ? "is-selected" : ""}">
+      <td>
+        <div class="selectable-title">
+          ${renderSkuCheckbox(record)}
+          <div><div class="sku">${escapeHTML(record.sku)}</div><div class="muted">${escapeHTML(record.productName || record.marketplace || "")}</div></div>
+        </div>
+      </td>
       <td><span class="status ${status.key}">${status.label}</span><div class="muted">${status.daysText}</div></td>
       <td><span class="muted">同批次</span></td>
       <td><strong>${money(record.discountPrice)}</strong></td>
@@ -404,6 +458,39 @@ function renderSkuRow(record) {
       <td><div class="${record.amazonErrors ? "danger-note" : "muted"}">${errorText}</div></td>
       <td>${renderRowActions(record)}</td>
     </tr>
+  `;
+}
+
+function renderBatchCheckbox(batch) {
+  if (VIEWER_MODE) return "";
+  const title = batch.records[0]?.activityTitle || "未命名批次";
+  return `
+    <label class="select-control" title="选择整批">
+      <input
+        class="select-checkbox"
+        type="checkbox"
+        data-select="batch"
+        data-key="${escapeAttribute(batch.key)}"
+        aria-label="选择批次 ${escapeAttribute(title)}"
+        ${selectedBatchKeys.has(batch.key) ? "checked" : ""}
+      />
+    </label>
+  `;
+}
+
+function renderSkuCheckbox(record) {
+  if (VIEWER_MODE) return "";
+  return `
+    <label class="select-control" title="选择 SKU">
+      <input
+        class="select-checkbox"
+        type="checkbox"
+        data-select="sku"
+        data-id="${escapeAttribute(record.id)}"
+        aria-label="选择 SKU ${escapeAttribute(record.sku)}"
+        ${selectedSkuIds.has(record.id) ? "checked" : ""}
+      />
+    </label>
   `;
 }
 
@@ -434,6 +521,87 @@ function renderRowActions(record) {
       <button class="ghost danger-text" type="button" data-action="delete" data-id="${record.id}">删</button>
     </div>
   `;
+}
+
+function deleteSelectedBatches() {
+  const selected = getSelectedBatchRecords();
+  if (!selected.batchCount) return;
+  if (!confirm(`确定删除 ${selected.batchCount} 个批次，共 ${selected.recordIds.size} 条 SKU？`)) return;
+
+  records = records.filter((record) => !selected.recordIds.has(record.id));
+  clearSelections();
+  saveRecords();
+  render();
+}
+
+function deleteSelectedSkus() {
+  const selectedIds = getSelectedSkuIds();
+  if (!selectedIds.size) return;
+  if (!confirm(`确定删除所选 ${selectedIds.size} 条 SKU？`)) return;
+
+  records = records.filter((record) => !selectedIds.has(record.id));
+  clearSelections();
+  saveRecords();
+  render();
+}
+
+function clearSelections() {
+  selectedBatchKeys.clear();
+  selectedSkuIds.clear();
+}
+
+function pruneSelections() {
+  const validBatchKeys = new Set(records.map(getBatchKey));
+  const validSkuIds = new Set(records.map((record) => record.id));
+
+  selectedBatchKeys.forEach((key) => {
+    if (!validBatchKeys.has(key)) selectedBatchKeys.delete(key);
+  });
+  selectedSkuIds.forEach((id) => {
+    if (!validSkuIds.has(id)) selectedSkuIds.delete(id);
+  });
+}
+
+function getSelectedBatchRecords() {
+  const recordIds = new Set();
+  selectedBatchKeys.forEach((key) => {
+    getRecordsByBatchKey(key).forEach((record) => recordIds.add(record.id));
+  });
+  return {
+    batchCount: selectedBatchKeys.size,
+    recordIds,
+  };
+}
+
+function getSelectedSkuIds() {
+  const validSkuIds = new Set(records.map((record) => record.id));
+  return new Set(Array.from(selectedSkuIds).filter((id) => validSkuIds.has(id)));
+}
+
+function updateBulkToolbar() {
+  if (VIEWER_MODE) {
+    bulkToolbar.hidden = true;
+    return;
+  }
+
+  const selectedBatches = getSelectedBatchRecords();
+  const selectedSkus = getSelectedSkuIds();
+  const hasSelection = selectedBatches.batchCount > 0 || selectedSkus.size > 0;
+
+  bulkToolbar.hidden = !hasSelection;
+  if (!hasSelection) return;
+
+  const parts = [];
+  if (selectedBatches.batchCount) {
+    parts.push(`已选 ${selectedBatches.batchCount} 批 / ${selectedBatches.recordIds.size} 条 SKU`);
+  }
+  if (selectedSkus.size) {
+    parts.push(`已选 ${selectedSkus.size} 条 SKU`);
+  }
+
+  bulkSummary.textContent = parts.join("，");
+  deleteSelectedBatchesButton.hidden = selectedBatches.batchCount === 0;
+  deleteSelectedSkusButton.hidden = selectedSkus.size === 0;
 }
 
 function applyQuickFilter(filter) {
